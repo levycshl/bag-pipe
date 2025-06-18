@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo_bag-pipe.svg" height="110" alt="bag-pipe logo"/>
+  <img src="docs/logo_bag-pipe.png" height="110" alt="bag-pipe logo"/>
 </p>
 
 # Bag-Pipe <!-- omit in toc -->
