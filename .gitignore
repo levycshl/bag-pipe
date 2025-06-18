@@ -1,0 +1,26 @@
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.so
+
+# Packaging artifacts
+*.egg-info/
+dist/
+build/
+
+# Jupyter artifacts
+.ipynb_checkpoints/
+
+# Environment & IDE
+.env/
+.venv/
+.idea/
+*.iml
+
+# Data outputs
+results/
+figures/
+
+# System files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,19 @@
+# Bagpipe configuration
+
+output_dir: "../output"
+threads: 4
+
+samples:
+  - id: "Test_2N"
+    fastq_r1: "data/test_data/r1_new2N.fastq.gz"
+    fastq_r2: "data/test_data/r2_new2N.fastq.gz"
+    
+reference:
+  refflat: "../data/databases/hg19.refFlat.20200301.igh.txt"
+
+programs:
+  hisat2: "Z:\\mnt\\wigstore3\\user\\kendall\\tools\\hisat2-2.1.0\\hisat2"
+  
+parameters:
+  min_mapping_quality: 10
+  min_read_length: 30

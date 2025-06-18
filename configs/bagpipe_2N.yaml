@@ -1,0 +1,224 @@
+# read_breaker_bagpipe_config.yaml
+params:
+  # Adapters (might be used for trimming later, less critical for initial parsing)
+  adapter_r1: "CCAAACACACCCAA"
+  adapter_r2: "GAGCGGACTCTGCG"
+  polyA: "AAAAAAAAAAAAAA"
+  # Upstream motif (Read 1)
+  up1_seq: "CATG"
+  up1_start: 63
+  up1_end: 67
+  up1_len: "{{ params.up1_end - params.up1_start }}" # Calculated length
+  up1_max_hamming: 1
+
+  ## read trimming parameters
+  trim_offset_r1: 38
+  trim_offset_r2: 25
+  start_r1: 80
+  start_r2: 0
+
+  # Read length thresholds
+  min_read_length_r1: 110
+  min_read_length_r2: 30
+
+  # Barcode segments (Read 1)
+  bc3_start: 0
+  bc3_end: 6
+  bc3_len: "{{ params.bc3_end - params.bc3_start }}"
+  bc2_start: 29
+  bc2_end: 35
+  bc2_len: "{{ params.bc2_end - params.bc2_start }}"
+  bc1_start: 54
+  bc1_end: 59
+  bc1_len: "{{ params.bc1_end - params.bc1_start }}"
+
+
+  # Varietal tag segments (Read 1)
+  vt3_start: 59
+  vt3_end: 63
+  vt3_len: "{{ params.vt3_end - params.vt3_start }}"
+
+  vt2_start: 35
+  vt2_end: 39
+  vt2_len: "{{ params.vt2_end - params.vt2_start }}"
+
+  vt1_start: 69
+  vt1_end: 73
+  vt1_len: "{{ params.vt1_end - params.vt1_start }}"
+
+  # Barcode whitelist paths
+  barcode_whitelists:
+    bc1: "barcodes/barcode1.txt"
+    bc2: "barcodes/barcode2.txt"
+    bc3: "barcodes/barcode3.txt"
+
+  regex_patterns:
+      adapter_r1:
+        type: full_or_tail
+        min_tail: 4
+        sequence: "{{ adapter_r1 }}"
+      polyA_tail:
+        type: full
+        sequence: "{{ polyA }}"
+      adapter_r2:
+        type: full_or_tail
+        min_tail: 4
+        sequence: "{{ adapter_r2 }}"
+  # NOTE: Length thresholds and trimming offsets are handled outside the parsing
+  # steps in read_breaker, typically before calling parse or after, during writing.
+
+pipeline:
+  # 1. Check upstream motif on Read 1
+  - id: check_upstream_motif_r1
+    description: Verify upstream motif in R1 within Hamming distance
+    read: 1
+    op: hamming_test # Uses hamming_test operation
+    ref: "{{ params.up1_seq }}"
+    start: "{{ params.up1_start }}"
+    length: "{{ params.up1_len }}"
+    max_mismatch: "{{ params.up1_max_hamming }}"
+    hamming_fn: "hamming" # Standard Hamming distance
+    store_result_as: motif_ok # Store boolean result
+    must_pass: true # Fail read if motif doesn't match
+
+  # 2. Extract Barcodes from Read 1
+  - id: extract_bc3
+    description: Extract barcode segment 3 from R1
+    read: 1
+    op: extract
+    start: "{{ params.bc3_start }}"
+    length: "{{ params.bc3_len }}"
+    store_seq_as: bc3
+    whitelist: bc3
+    store_match_as: bc3_match
+    must_pass: false # Assumes barcodes must be present
+
+  - id: extract_bc2
+    description: Extract barcode segment 2 from R1
+    read: 1
+    op: extract
+    start: "{{ params.bc2_start }}"
+    length: "{{ params.bc2_len }}"
+    store_seq_as: bc2
+    whitelist: bc2
+    store_match_as: bc2_match
+    must_pass: false
+
+  - id: extract_bc1
+    description: Extract barcode segment 1 from R1
+    read: 1
+    op: extract
+    start: "{{ params.bc1_start }}"
+    length: "{{ params.bc1_len }}"
+    store_seq_as: bc1
+    whitelist: bc1
+    store_match_as: bc1_match
+    must_pass: false
+
+
+  # 3. Check that the barcodes passed
+  - id: good_barcodes
+    description: Check if barcodes passed validation
+    op: test
+    expression: "{{ bc1_match and bc2_match and bc3_match }}"
+    store_result_as: barcodes_valid
+    must_pass: true
+
+  # 4. Extract Varietal Tags from Read 1
+  - id: extract_vt3
+    description: Extract varietal tag segment 3 from R1
+    read: 1
+    op: extract
+    start: "{{ params.vt3_start }}"
+    length: "{{ params.vt3_len }}"
+    store_seq_as: vt3
+    must_pass: true # Assumes tags must be present
+
+  - id: extract_vt2
+    description: Extract varietal tag segment 2 from R1
+    read: 1
+    op: extract
+    start: "{{ params.vt2_start }}"
+    length: "{{ params.vt2_len }}"
+    store_seq_as: vt2
+    must_pass: true
+
+  - id: extract_vt1
+    description: Extract varietal tag segment 1 from R1
+    read: 1
+    op: extract
+    start: "{{ params.vt1_start }}"
+    length: "{{ params.vt1_len }}"
+    store_seq_as: vt1
+    must_pass: true
+
+  # 5. Check for adapter and polyA in Read 1 for read-thru and trimming
+  - id: find_adapter_r1
+    description: Find the full or partial adapter sequence in R1
+    read: 1
+    op: regex_search
+    pattern: "adapter_r1"
+    store_pos_as: adapter1_start
+    must_pass: false
+
+  - id: find_polya_r1
+    description: Search R1 for polyA tail (14 A's)
+    read: 1
+    op: regex_search
+    pattern: "polyA_tail"
+    store_pos_as: polya_start
+    must_pass: false
+
+  # 6. Check for adapter in Read 2 for read-thru and trimming
+  - id: find_adapter_r2
+    description: Search R2 for adapter (full or partial at end)
+    read: 2
+    op: regex_search
+    pattern: "adapter_r2"
+    store_pos_as: adapter2_start
+    must_pass: false
+
+  # 7. Compute the end positions for trimming
+  - id: compute_end_r1
+    description: Compute the end position for trimming R1
+    op: compute
+    expression: "{{ (adapter1_start - params.trim_offset_r1) if adapter1_start is not none else (polya_start if polya_start is not none else len_seq1) }}"
+    store_as: end_r1
+    must_pass: true
+
+  - id: compute_end_r2
+    description: Compute the end position for trimming R2
+    op: compute
+    expression: "{{ (adapter2_start - params.trim_offset_r2) if adapter2_start is not none else len_seq2 }}"
+    store_as: end_r2
+    must_pass: true
+
+  ## 8. check if the reads are long enough
+  - id: check_read_lens
+    description: Check if the reads are long enough
+    op: test
+    expression: "{{(end_r1 >= params.min_read_length_r1 and end_r2 >= params.min_read_length_r2)}}"
+    store_result_as: read_lens_ok
+    must_pass: true
+
+  ##9. Assemble the tags
+  - id: assemble_bead_tag
+    description: Assemble the three barcodes
+    op: compute
+    expression: "{{ bc3 ~ bc2 ~ bc1 }}"
+    store_as: bead_tag
+    must_pass: true
+
+  - id: assemble_varietal_tag
+    description: Assemble the three varietal tags
+    op: compute
+    expression: "{{ vt3 ~ vt2 ~ vt1 }}"
+    store_as: varietal_tag
+    must_pass: true
+
+  - id: assemble_read_tag
+    description: Combine bead and varietal tags into a single tag
+    op: compute
+    expression: "{{ bead_tag ~ '_' ~ varietal_tag }}"
+    store_as: read_tag
+    must_pass: true

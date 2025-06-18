@@ -1,0 +1,40 @@
+
+hisat2_index: "data/refs/hisat2/ucsc.hg19"
+splice_sites: "data/refs/hisat2/hg19.refseq.splicesites.txt"
+refflat: "data/databases/hg19.refFlat.20200301.igh.txt"
+
+samples:
+ - id: "Test_2N"
+   fastq_r1: "data/test_data/r1_new2N.fastq.gz"
+   fastq_r2: "data/test_data/r2_new2N.fastq.gz"
+   parse_config: "configs/bagpipe_2N.yaml"
+
+hisat2_exe: "hisat2"
+samtools_exe: "samtools"
+threads: 8
+max_frag_len: 1500
+
+chromosomes:
+  - chr1
+  - chr2
+  - chr3
+  - chr4
+  - chr5
+  - chr6
+  - chr7
+  - chr8
+  - chr9
+  - chr10
+  - chr11
+  - chr12
+  - chr13
+  - chr14
+  - chr15
+  - chr16
+  - chr17
+  - chr18
+  - chr19
+  - chr20
+  - chr21
+  - chr22
+  - chrX

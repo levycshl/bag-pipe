@@ -1,0 +1,138 @@
+# -------------------------------------------------------------
+#  Bag-Pipe pipeline
+# -------------------------------------------------------------
+configfile: "configs/pipeline_params.yaml"
+
+SAMPLES = [s["id"] for s in config["samples"]]
+CHRS    = config["chromosomes"]
+
+rule all:
+    input:
+        expand("results/{sample}.{chr}.vt.tsv.gz",
+            sample=SAMPLES,
+            chr=CHRS)
+
+# -------------------------------------------------------------
+# 1.  Trim and tag reads
+# -------------------------------------------------------------
+rule trim_and_tag:
+    input:
+        r1   = lambda wc: next(s for s in config["samples"] if s["id"] == wc.sample)["fastq_r1"],
+        r2   = lambda wc: next(s for s in config["samples"] if s["id"] == wc.sample)["fastq_r2"],
+        cfg  = lambda wc: next(s for s in config["samples"] if s["id"] == wc.sample)["parse_config"],
+    output:
+        r1 = "trimmed/{sample}.R1.fastq.gz",
+        r2 = "trimmed/{sample}.R2.fastq.gz",
+    params:
+        outdir = "trimmed/",
+    conda: "environment.yml"
+    threads: config["threads"]
+    shell:
+        """
+        bag_pipe trim \
+            --r1 {input.r1} --r2 {input.r2} \
+            --parse-config {input.cfg} \
+            --sample-id {wildcards.sample} \
+            --outdir {params.outdir}
+        """
+
+# -------------------------------------------------------------
+# 2. Map reads to refrence genome using HISAT2
+# -------------------------------------------------------------
+rule hisat2_align:
+    input:
+        r1 = "trimmed/{sample}.R1.fastq.gz",
+        r2 = "trimmed/{sample}.R2.fastq.gz",
+    output:
+        bam = temp("alignment/{sample}.unsorted.bam"),
+    params:
+        idx        = config["hisat2_index"],
+        splice     = config["splice_sites"],
+        threads    = config["threads"],
+        exe        = config["hisat2_exe"],
+        maxlen     = config["max_frag_len"],
+    threads: config["threads"]
+    conda: "environment.yml"
+    shell:
+        """
+        {params.exe} -x {params.idx} --rna-strandness RF \
+                     --known-splicesite-infile {params.splice} \
+                     --max-intronlen {params.maxlen} \
+                     -1 {input.r1} -2 {input.r2} \
+                     --threads {threads} |
+        samtools view -bS - > {output.bam}
+        """
+
+# -------------------------------------------------------------
+# 3. Sort and index BAM files
+# -------------------------------------------------------------
+rule sort_bam_and_index:
+    input: "alignment/{sample}.unsorted.bam"
+    output:
+        sorted="alignment/{sample}.sorted.bam",
+        bai="alignment/{sample}.sorted.bam.bai"
+    threads: 4
+    shell:
+        """
+            {config[samtools_exe]} sort -@ {threads} -o {output.sorted} {input}
+            {config[samtools_exe]} index {output.sorted}
+            """
+
+# -------------------------------------------------------------
+# 4. Extract features from the BAM files by chromosome
+# -------------------------------------------------------------
+
+rule extract_features_chr:
+    input:
+        bam = "alignment/{sample}.sorted.bam"
+    output:
+        tsv = temp("tagmap/{sample}.{chr}.tsv")
+    params:
+        chr  = "{chr}",
+        mapq = 1
+    shell:
+        """
+        samtools view -h {input.bam} {params.chr} | \
+        bag_pipe extract /dev/stdin {output.tsv} --min-mapq {params.mapq}
+        """
+
+# -------------------------------------------------------------
+# 5. Sort feature table by genomic coordinates
+# -------------------------------------------------------------
+rule sort_features_chr:
+    input:
+        "tagmap/{sample}.{chr}.tsv"
+    output:
+        "tagmap/{sample}.{chr}.sorted.tsv"
+    threads: 1          # GNU sort is single-threaded
+    shell:
+        """
+        sort -T $(dirname {output}) \
+             -k2,2      \                 # chrom (already chr-specific)
+             -k3,3      \                 # strand
+             -k4,4      \                 # flag
+             -k5,5n     \                 # start (numeric)
+             -k6,6n     \                 # end   (numeric)
+             {input} > {output}
+        """
+
+## -------------------------------------------------------------
+# 6. Group by varietal tag, rollup low-abundance tags,
+#    summarise read coverage, and calculate gene overlaps
+# -------------------------------------------------------------
+rule summarise_chr:
+    input:
+        tsv = "tagmap/{sample}.{chr}.sorted.tsv",
+        ref = "data/databases/hg19.refFlat.20200301.igh.txt"
+    output:
+        "results/{sample}.{chr}.vt.tsv.gz"
+    params:
+        chr = "{chr}"
+    shell:
+        """
+        bag_pipe summarise \
+            --chrom {params.chr} \
+            --tsv-in {input.tsv} \
+            --ref-flat {input.ref} \
+            --tsv-out {output}
+        """

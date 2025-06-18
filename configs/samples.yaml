@@ -1,0 +1,5 @@
+samples:
+  - id: "Test_2N"
+    fastq_r1: "../data/test_data/r1_new2N.fastq.gz"
+    fastq_r2: "../data/test_data/r2_new2N.fastq.gz"
+    parse_config: "../configs/bagpipe_2N.yaml"
