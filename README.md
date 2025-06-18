@@ -118,7 +118,7 @@ snakemake -j 8 --use-conda          # default DAG (all chromosomes, all samples)
   `sort_bam`, `extract_features_chr`, `sort_features_chr`, `summarise_chr`
 * Final artefacts land in `results/{sample}.{chr}.vt.tsv.gz`.
 
-See `workflow/README.md` for cluster profiles and per-rule resource hints.
+**TODO** It would be nice if we had a `workflow/README.md` that offers cluster profiles and per-rule resource hints.
 
 ---
 
@@ -142,7 +142,7 @@ See `workflow/README.md` for cluster profiles and per-rule resource hints.
 | `tagmap/{sample}.{chr}.sorted.tsv` | per-alignment feature table                  |
 | `results/{sample}.{chr}.vt.tsv.gz` | VT-level summary (one line per surviving VT) |
 
-Column definitions live in **`docs/output_schema.md`**.
+**TODO** Column definitions will live in **`docs/output_schema.md`**.
 
 ---
 
