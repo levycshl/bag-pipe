@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/logo_bag-pipe.png" height="110" alt="bag-pipe logo"/>
+  <img src="docs/logo_bag-pipe.png" height="256" alt="bag-pipe logo"/>
 </p>
 
 # Bag-Pipe <!-- omit in toc -->
@@ -17,10 +17,6 @@ read tables suitable for repertoire analysis and QC.
 | | build | tests | license |
 |---|---|---|---|
 | **Status** | ![CI badge](https://img.shields.io/badge/CI-passing-brightgreen?logo=github) | ![pytest](https://img.shields.io/badge/tests-100%25-brightgreen) | ![MIT](https://img.shields.io/badge/license-MIT-blue) |
-
-> **TL;DR**  
-> `pip install bag-pipe read-break`  
-> `snakemake -j 8 --use-conda`
 
 ---
 
