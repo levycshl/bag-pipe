@@ -1,4 +1,4 @@
-name: bag_pipe
+name: bag-pipe
 channels:
   - conda-forge
 dependencies:
