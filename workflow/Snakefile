@@ -46,7 +46,7 @@ rule hisat2_align:
     output:
         bam = temp("alignment/{sample}.unsorted.bam"),
     params:
-        idx        = config["hisat2_index"],
+        idx = config["hisat2_index"],
         splice     = config["splice_sites"],
         threads    = config["threads"],
         exe        = config["hisat2_exe"],
@@ -72,6 +72,7 @@ rule sort_bam_and_index:
         sorted="alignment/{sample}.sorted.bam",
         bai="alignment/{sample}.sorted.bam.bai"
     threads: 4
+    conda: "environment.yml"
     shell:
         """
             {config[samtools_exe]} sort -@ {threads} -o {output.sorted} {input}
@@ -86,10 +87,11 @@ rule extract_features_chr:
     input:
         bam = "alignment/{sample}.sorted.bam"
     output:
-        tsv = temp("tagmap/{sample}.{chr}.tsv")
+        tsv = temp("tagmap_raw/{sample}.{chr}.tsv")
     params:
         chr  = "{chr}",
         mapq = 1
+    conda: "environment.yml"
     shell:
         """
         samtools view -h {input.bam} {params.chr} | \
@@ -101,21 +103,29 @@ rule extract_features_chr:
 # -------------------------------------------------------------
 rule sort_features_chr:
     input:
-        "tagmap/{sample}.{chr}.tsv"
+        "tagmap_raw/{sample}.{chr}.tsv"
     output:
         "tagmap/{sample}.{chr}.sorted.tsv"
     threads: 1          # GNU sort is single-threaded
     shell:
-        """
-        sort -T $(dirname {output}) \
-             -k2,2      \                 # chrom (already chr-specific)
-             -k3,3      \                 # strand
-             -k4,4      \                 # flag
-             -k5,5n     \                 # start (numeric)
-             -k6,6n     \                 # end   (numeric)
-             {input} > {output}
-        """
+        r'''
+        # 1) Drop the header (line 1) so downstream tools never see it.
+        # 2) Sort deterministically:
+        #      col 2 = strand
+        #      col 3 = flag
+        #      col 4 = start     (numeric)
+        #      col 5 = end       (numeric)
+        #      col 6 = mate-start (numeric)
 
+        tail -n +2 {input} |
+        LC_ALL=C sort -T $(dirname {output}) \
+            -k2,2 \
+            -k3,3 \
+            -k4,4 \
+            -k5,5n \
+            -k6,6n \
+        > {output}
+        '''
 ## -------------------------------------------------------------
 # 6. Group by varietal tag, rollup low-abundance tags,
 #    summarise read coverage, and calculate gene overlaps
@@ -123,11 +133,12 @@ rule sort_features_chr:
 rule summarise_chr:
     input:
         tsv = "tagmap/{sample}.{chr}.sorted.tsv",
-        ref = "data/databases/hg19.refFlat.20200301.igh.txt"
+        ref = config["ref_flat"]
     output:
         "results/{sample}.{chr}.vt.tsv.gz"
     params:
         chr = "{chr}"
+    conda: "environment.yml"
     shell:
         """
         bag_pipe summarise \

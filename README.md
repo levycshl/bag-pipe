@@ -37,7 +37,7 @@ read tables suitable for repertoire analysis and QC.
 
 ```bash
 # 1 – Clone the public repo
-git clone https://github.com/YourOrg/bag-pipe.git
+git clone https://github.com/levycshl/bag-pipe.git
 cd bag-pipe
 
 # 2 – Create the exact software stack declared in environment.yml
@@ -53,6 +53,10 @@ pip install .
 bag_pipe trim --help
 bag_pipe extract --help
 bag_pipe summarise --help
+
+# 5 – Download the HISAT2 index and configure pipeline_params.yaml to match your setup.
+ wget -O hg19_hisat2_genome.tar.gz https://genome-idx.s3.amazonaws.com/hisat/hg19_genome.tar.gz
+
 
 ````
 

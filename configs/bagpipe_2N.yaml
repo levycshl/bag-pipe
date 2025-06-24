@@ -48,9 +48,9 @@ params:
 
   # Barcode whitelist paths
   barcode_whitelists:
-    bc1: "barcodes/barcode1.txt"
-    bc2: "barcodes/barcode2.txt"
-    bc3: "barcodes/barcode3.txt"
+    bc1: "../data/barcodes/barcode1.txt"
+    bc2: "../data/barcodes/barcode2.txt"
+    bc3: "../data/barcodes/barcode3.txt"
 
   regex_patterns:
       adapter_r1:

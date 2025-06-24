@@ -1,4 +1,5 @@
-
+## path to the hisat2 index, splice sites file, and refFlat file
+## we do not provide a hisat2_index.
 hisat2_index: "data/refs/hisat2/ucsc.hg19"
 splice_sites: "data/refs/hisat2/hg19.refseq.splicesites.txt"
 refflat: "data/databases/hg19.refFlat.20200301.igh.txt"
