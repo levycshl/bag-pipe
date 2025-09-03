@@ -183,7 +183,6 @@ def parse_cigar(
     ## odd for lengths, even for operations
     lengths = list(map(int, _CIGAR_SPLIT.split(cigar)[1::2]))
     ops     = _CIGAR_SPLIT.split(cigar)[2::2]
-    print("CIGAR:", cigar, "→", lengths, ops)
     ## called exons, but really "intervals of coverage"
     exon_starts: List[int] = []
     exon_ends:   List[int] = []
@@ -297,15 +296,6 @@ def _open(path: str | pathlib.Path | None) -> TextIO:
 
 
 
-# ── simple text-handle opener ─────────────────────────────────────────
-def _open(path: str | pathlib.Path | None) -> TextIO:
-    if path in (None, '-', ''):
-        return sys.stdin
-    path = pathlib.Path(path)
-    if path.suffix == '.gz':
-        return gzip.open(path, 'rt')
-    return path.open()
-
 
 # ── dataclass to describe one alignment-summary row ──────────────────
 @dataclass(slots=True)
@@ -344,7 +334,7 @@ class TagMapRow:
 def _split_ints(cell: str) -> List[int]:
     if cell == '' or cell == ',':
         return []
-    return [int(x) for x in cell.rstrip(',').split(',')]
+    return [int(x) for x in cell.rstrip(',').split(',') if x]
 
 
 
@@ -364,6 +354,10 @@ def tag_and_map_stream(
     with _open(tsv_path) as fh:
         for line in fh:
             f = line.rstrip('\n').split('\t')
+            
+            # Skip lines with insufficient columns (need at least 9 columns)
+            if len(f) < 9:
+                continue
 
             bc    = f[1]
             flag  = int(f[6])
