@@ -124,16 +124,24 @@ class SAMReader:
             if line.startswith("@"):
                 continue                       # header
             fields = line.rstrip("\n").split("\t")
+            
+            # Skip lines with insufficient fields (SAM requires at least 11 fields)
+            if len(fields) < 6:
+                continue
 
-            # Only the six fields we care about – everything else is ignored
-            yield SamAlignment(
-                qname=fields[0],
-                flag=int(fields[1]),
-                rname=fields[2],
-                pos=int(fields[3]),
-                mapq=int(fields[4]),
-                cigar=fields[5],
-            )
+            try:
+                # Only the six fields we care about – everything else is ignored
+                yield SamAlignment(
+                    qname=fields[0],
+                    flag=int(fields[1]),
+                    rname=fields[2],
+                    pos=int(fields[3]),
+                    mapq=int(fields[4]),
+                    cigar=fields[5],
+                )
+            except (ValueError, IndexError):
+                # Skip malformed lines
+                continue
 
     # context-manager sugar so callers can `with SAMReader(path) as rdr:`
     def __enter__(self):
